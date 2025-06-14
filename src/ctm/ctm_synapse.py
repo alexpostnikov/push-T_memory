@@ -99,8 +99,10 @@ class CTMSynapseWrapper(nn.Module):
         agg_out = torch.stack(tick_outputs, dim=1)  # [B, ticks, N]
         # Take last nonzero per neuron (fallback to last tick if all zero)
         mask = (agg_out != 0).float()
-        idx = mask.cumsum(1).argmax(1)
-        final_out = agg_out[torch.arange(batch_size).unsqueeze(-1), idx, torch.arange(self.num_neurons)]
+        idx = mask.cumsum(1).argmax(1)  # [B, N]
+        # gather along tick dimension in a stable way
+        idx_exp = idx.unsqueeze(1)  # [B, 1, N]
+        final_out = agg_out.gather(1, idx_exp).squeeze(1)
         return final_out
 
     def get_tick_trace(self):
