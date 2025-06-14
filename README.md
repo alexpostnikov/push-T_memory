@@ -1,3 +1,25 @@
+# CTM-ACT Push-T Integration
+
+## Quickstart
+
+Before running any code or notebooks, set up your development environment by running:
+
+```bash
+./scripts/setup_env.sh
+```
+
+This script will create external dependencies, install Python requirements, and set up all necessary packages for development and experimentation.
+
+## Repository Structure
+
+- `external/` – External repositories (added as submodules).
+- `src/` – Project Python source code (`ctm_act` pip package).
+- `scripts/` – Training, evaluation, and helper scripts.
+- `notebooks/` – Jupyter notebooks for analysis and visualization.
+- `report/` – LaTeX sources and compiled PDF for experiments and results.
+
+See individual directories for more details as the project develops.
+
 GOAL: Enhance the baseline Push‑T policy built on DeepMind’s ACT (Adaptive Controller Transformer) by integrating Continuous Thought Machine (CTM) mechanisms—specifically neuron-level internal state (“ticks”) and synchronization—to exceed ACT and diffusion policy metrics in metrics like success rate, trajectory smoothness, and inference speed.
 
  System Overview
