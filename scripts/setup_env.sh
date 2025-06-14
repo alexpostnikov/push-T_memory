@@ -18,20 +18,12 @@ else
     info "external/ directory already exists."
 fi
 
-# Clone LeRobot (shallow, default branch) if missing
-if [ ! -d external/lerobot ]; then
-    info "Cloning LeRobot into external/lerobot..."
-    git clone --depth 1 https://github.com/huggingface/lerobot.git external/lerobot
+# Check for git
+if ! command -v git &>/dev/null; then
+    warn "git is not installed or not found in PATH. Please install git to use submodules."
 else
-    info "external/lerobot already exists; skipping clone."
-fi
-
-# Clone SakanaAI Continuous Thought Machine (CTM) if missing
-if [ ! -d external/ctm ]; then
-    info "Cloning SakanaAI Continuous Thought Machine into external/ctm..."
-    git clone --depth 1 https://github.com/SakanaAI/continuous-thought-machines.git external/ctm
-else
-    info "external/ctm already exists; skipping clone."
+    info "Initialising / updating git submodules..."
+    git submodule update --init --recursive
 fi
 
 # Python virtual environment setup
@@ -52,10 +44,15 @@ info "Installing Python requirements inside virtual environment..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Install LeRobot and CTM in editable mode inside venv
-info "Installing LeRobot and CTM in editable mode inside venv..."
-pip install -e external/lerobot
-pip install -e external/ctm
+# Install LeRobot and CTM dependencies if present, then install in editable mode
+for MODULE in lerobot ctm; do
+    if [ -f "external/$MODULE/requirements.txt" ]; then
+        info "Installing requirements for $MODULE..."
+        pip install -r "external/$MODULE/requirements.txt"
+    fi
+    info "Installing $MODULE in editable mode..."
+    pip install -e "external/$MODULE"
+done
 
 success "Environment setup complete! Virtual environment is active."
 echo ""

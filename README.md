@@ -1,18 +1,21 @@
 # CTM-ACT Push-T Integration
 
-# Installation & Environment Setup
+# Installation
 
-## 1. Python Version
-
-This project requires **Python 3.11** or newer.  
-Use either a Conda environment (recommended) or a manually created virtual environment with Python 3.11+.  
-**Do not mix conda and venv for this project. Use one or the other.**
-
----
-
-## 2. Recommended: Conda Environment
+Clone the repository:
 
 ```bash
+git clone https://github.com/your-org/your-repo.git
+cd your-repo
+```
+
+Initialise submodules (required for baseline and CTM modules):
+
+```bash
+git submodule update --init --recursive
+```
+
+Alternatively, running the setup script below will also initialise submodules automatically.bash
 conda create -n pushT_ctm python=3.11
 conda activate pushT_ctm
 pip install -r requirements.txt
