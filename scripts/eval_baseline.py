@@ -57,23 +57,36 @@ def import_lerobot_policy(policy_type):
     """
     Dynamically import the correct policy class based on type.
     """
-    try:
-        if policy_type == "act":
-            from lerobot.models.act import ACTPolicy
-            return ACTPolicy
-        elif policy_type == "diffusion":
-            from lerobot.models.diffusion import DiffusionPolicy
-            return DiffusionPolicy
-        else:
-            raise ValueError(f"Unknown policy type: {policy_type}")
-    except ImportError as e:
-        msg = (
-            f"Could not import LeRobot policy class for '{policy_type}'.\n"
-            "Ensure the external/lerobot submodule is initialised.\n"
-            "   git submodule update --init --recursive\n"
-            f"Original error: {e}"
-        )
-        raise ImportError(msg)
+    import importlib
+    CANDIDATES = {
+        "act": [
+            "lerobot.models.act.ACTPolicy",
+            "lerobot.policies.act_policy.ACTPolicy",
+            "lerobot.policy.act.ACTPolicy",
+        ],
+        "diffusion": [
+            "lerobot.models.diffusion.DiffusionPolicy",
+            "lerobot.policies.diffusion_policy.DiffusionPolicy",
+            "lerobot.policy.diffusion.DiffusionPolicy",
+        ],
+    }
+    if policy_type not in CANDIDATES:
+        raise ValueError(f"Unknown policy type: {policy_type}")
+    errors = []
+    for dotted in CANDIDATES[policy_type]:
+        module_part, cls_name = dotted.rsplit('.', 1)
+        try:
+            module = importlib.import_module(module_part)
+            return getattr(module, cls_name)
+        except (ImportError, AttributeError) as e:
+            errors.append(str(e))
+            continue
+    err_msg = (
+        f"Could not locate {policy_type} policy class in known module paths.\n"
+        "Tried:\n  - " + "\n  - ".join(CANDIDATES[policy_type]) + "\n"
+        "Make sure LeRobot is installed or external/lerobot is up-to-date and on PYTHONPATH."
+    )
+    raise ImportError(err_msg + "\n" + "\n".join(errors))
 
 class LegacyPolicyWrapper:
     """
