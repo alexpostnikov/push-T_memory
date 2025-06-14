@@ -21,7 +21,7 @@ fi
 # Clone LeRobot (shallow, default branch) if missing
 if [ ! -d external/lerobot ]; then
     info "Cloning LeRobot into external/lerobot..."
-    git clone --depth 1 https://github.com/lerobot/lerobot.git external/lerobot
+    git clone --depth 1 https://github.com/huggingface/lerobot.git external/lerobot
 else
     info "external/lerobot already exists; skipping clone."
 fi
@@ -29,7 +29,7 @@ fi
 # Clone SakanaAI Continuous Thought Machine (CTM) if missing
 if [ ! -d external/ctm ]; then
     info "Cloning SakanaAI Continuous Thought Machine into external/ctm..."
-    git clone --depth 1 https://github.com/SakanaAI/Continuous-Thought-Machine.git external/ctm
+    git clone --depth 1 https://github.com/SakanaAI/continuous-thought-machines.git external/ctm
 else
     info "external/ctm already exists; skipping clone."
 fi
