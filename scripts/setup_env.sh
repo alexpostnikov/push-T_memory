@@ -44,15 +44,31 @@ info "Installing Python requirements inside virtual environment..."
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Install LeRobot and CTM dependencies if present, then install in editable mode
+# Install LeRobot and CTM dependencies if present, then install in editable mode if possible
 for MODULE in lerobot ctm; do
-    if [ -f "external/$MODULE/requirements.txt" ]; then
-        info "Installing requirements for $MODULE..."
-        pip install -r "external/$MODULE/requirements.txt"
+    if [ -d "external/$MODULE" ]; then
+        # 1) Install dependencies if any
+        if [ -f "external/$MODULE/requirements.txt" ]; then
+            info "Installing requirements for $MODULE..."
+            pip install -r "external/$MODULE/requirements.txt"
+        fi
+        # 2) Editable install if possible
+        if [ -f "external/$MODULE/setup.py" ] || [ -f "external/$MODULE/pyproject.toml" ]; then
+            info "Installing $MODULE in editable mode..."
+            pip install -e "external/$MODULE"
+        else
+            warn "$MODULE has no setup.py or pyproject.toml. Skipping editable install and adding to PYTHONPATH."
+            export PYTHONPATH="${PYTHONPATH}:$(pwd)/external/$MODULE"
+        fi
+    else
+        warn "external/$MODULE directory not found. Skipping."
     fi
-    info "Installing $MODULE in editable mode..."
-    pip install -e "external/$MODULE"
 done
+
+echo ""
+echo "If you want the PYTHONPATH change to persist, add the following line to your shell config (e.g. ~/.bashrc):"
+echo 'export PYTHONPATH="${PYTHONPATH}:$(pwd)/external/lerobot:$(pwd)/external/ctm"'
+echo ""
 
 success "Environment setup complete! Virtual environment is active."
 echo ""
