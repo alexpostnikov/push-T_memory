@@ -1,5 +1,46 @@
 # CTM-ACT Push-T Integration
 
+---
+
+## 🗺️ Overall Project Plan
+
+This project aims to enhance the Push‑T policy by integrating Continuous Thought Machine (CTM) mechanisms into DeepMind’s ACT (Adaptive Controller Transformer) baseline. The goal is to surpass both ACT and diffusion policy metrics in success rate, trajectory smoothness, and inference speed.
+
+### ✅ What Has Been Done
+
+- **Repository Setup:**  
+  - Structured codebase with `src/`, `scripts/`, `notebooks/`, and `report/` directories.
+  - Added installation/setup documentation and helper scripts.
+- **Baselines Ready:**  
+  - ACT and diffusion policy baselines cloned, pre-trained weights loaded, and evaluation scripts set up.
+- **External CTM Modules:**  
+  - SakanaAI’s CTM repo cloned and basic API/tick/sync modules installed.
+- **Initial Integration Plan:**  
+  - Outlined approach for wrapping ACT transformer layers with CTM-style modules.
+  - Defined evaluation metrics and reporting pipeline.
+- **LaTeX Report Template:**  
+  - Created initial LaTeX structure for experiment reporting.
+
+### 🔜 What Is Next
+
+- **CTM-Style Integration:**  
+  - Implement PyTorch CTM synapse wrappers for ACT transformer layers (internal ticks, neuron history, and sync gating).
+  - Replace/augment selected feed-forward and attention layers with tick-synchronous modules.
+- **Training Pipeline:**  
+  - Fine-tune CTM-ACT model on Push‑T using curriculum tick ramp-up and adaptive loss.
+- **Evaluation & Metrics:**  
+  - Benchmark against ACT and diffusion policies on success rate, overlap, and trajectory smoothness.
+- **Visualization & Logging:**  
+  - Develop scripts/notebooks for tick-wise neuron/activity traces, attention maps, and adaptive compute stats.
+  - Compare trajectories and plot performance improvements.
+- **Reporting:**  
+  - Auto-generate updated LaTeX report (metrics, ablations, visualizations).
+  - Compile and release PDF of results.
+
+*This section will be updated as milestones are completed. See below for full technical and usage details.*
+
+---
+
 # Installation
 
 Clone the repository:
@@ -15,7 +56,8 @@ Initialise submodules (required for baseline and CTM modules):
 git submodule update --init --recursive
 ```
 
-Alternatively, running the setup script below will also initialise submodules automatically.bash
+Alternatively, running the setup script below will also initialise submodules automatically.
+```bash
 conda create -n pushT_ctm python=3.11
 conda activate pushT_ctm
 pip install -r requirements.txt
@@ -53,7 +95,53 @@ If you wish to use the helper script, ensure you are already in your Conda or ve
 
 This script will create external dependencies, install Python requirements, and set up all necessary packages for development and experimentation.
 
-- **Run Baseline Policies:** See [docs/baselines_push_t.md](docs/baselines_push_t.md) for step-by-step instructions to evaluate baseline ACT/Diffusion models on the Push-T task using pre-trained checkpoints.
+---
+
+## 🚀 Running Baselines
+
+You can evaluate baseline ACT and diffusion policies on the Push‑T environment using pre-trained checkpoints.  
+**Follow these steps to run the baselines:**
+
+1. **Install Dependencies**  
+   Ensure your environment is set up as described in the [Installation](#installation) and [Quickstart](#quickstart) sections above.
+
+2. **Download Pretrained Checkpoints**  
+   - Pretrained weights for ACT and diffusion models are either included in the repo or can be downloaded via the provided scripts.
+   - If required, run:
+     ```bash
+     ./scripts/download_checkpoints.sh
+     ```
+
+3. **Run Baseline Evaluation**  
+   - To evaluate the ACT or Diffusion baselines, use the provided evaluation script:
+     ```bash
+     python scripts/eval_baseline.py --policy act --checkpoint checkpoints/pusht_act.ckpt --episodes 100 --device cuda
+     ```
+     or, for Diffusion:
+     ```bash
+     python scripts/eval_baseline.py --policy diffusion --checkpoint checkpoints/pusht_diffusion.ckpt --episodes 100 --device cuda
+     ```
+   - For further options and details, see the script help:
+     ```bash
+     python scripts/eval_baseline.py --help
+     ```
+
+4. **View Results**  
+   - Evaluation metrics and logs will be printed to the console, and if `--output` is given, saved to a JSON file.
+   - For detailed explanations, see [docs/baselines_push_t.md](docs/baselines_push_t.md).
+
+---
+
+- **Further Details:** See [docs/baselines_push_t.md](docs/baselines_push_t.md) for advanced usage, troubleshooting, and baseline results.
+
+#### Troubleshooting
+
+> **If you receive an ImportError for `lerobot` or the environment:**  
+> Make sure you have initialised the `external/lerobot` submodule:
+>
+> ```bash
+> git submodule update --init --recursive
+> ```
 
 ## Repository Structure
 
