@@ -27,30 +27,6 @@ DIFF_URL="https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safe
 CKPT_DIR="checkpoints"
 ACT_FILE="$CKPT_DIR/pusht_act.safetensors"
 DIFF_FILE="$CKPT_DIR/pusht_diffusion.safetensors"
-# for this project. Downloads files from Hugging Face if not present in ./checkpoints/.
-#
-# Usage:
-#   bash scripts/download_checkpoints.sh
-#
-# Requirements:
-#   - wget (preferred) or curl
-#
-# The script will:
-#   - Create a 'checkpoints/' directory if it does not exist.
-#   - Download pusht_act.safetensors (~210MB) and pusht_diffusion.safetensors (~1GB) if missing or empty.
-#   - Skip download if file exists and is non-empty.
-#
-
-set -e
-
-# Updated checkpoint sources (2024):
-#   - ACT policy:     https://huggingface.co/pepijn223/act-pusht/resolve/main/model.safetensors (~210MB)
-#   - Diffusion:      https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safetensors (~1GB)
-ACT_URL="https://huggingface.co/pepijn223/act-pusht/resolve/main/model.safetensors"
-DIFF_URL="https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safetensors"
-CKPT_DIR="checkpoints"
-ACT_FILE="$CKPT_DIR/pusht_act.safetensors"
-DIFF_FILE="$CKPT_DIR/pusht_diffusion.safetensors"
 
 # Check for wget or curl
 if command -v wget >/dev/null 2>&1; then
