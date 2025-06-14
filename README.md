@@ -56,7 +56,8 @@ Initialise submodules (required for baseline and CTM modules):
 git submodule update --init --recursive
 ```
 
-Alternatively, running the setup script below will also initialise submodules automatically.bash
+Alternatively, running the setup script below will also initialise submodules automatically.
+```bash
 conda create -n pushT_ctm python=3.11
 conda activate pushT_ctm
 pip install -r requirements.txt
@@ -112,29 +113,35 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
      ```
 
 3. **Run Baseline Evaluation**  
-   - To evaluate the CTM-ACT or baseline policies, use the provided evaluation script:
+   - To evaluate the ACT or Diffusion baselines, use the provided evaluation script:
      ```bash
-     python scripts/ctm_eval.py --policy act --checkpoint path/to/act_checkpoint.pth
+     python scripts/eval_baseline.py --policy act --checkpoint checkpoints/pusht_act.ckpt --episodes 100 --device cuda
      ```
-     or, for evaluating CTM-integrated ACT:
+     or, for Diffusion:
      ```bash
-     python scripts/ctm_eval.py --policy ctm_act --checkpoint path/to/ctm_act_checkpoint.pth
+     python scripts/eval_baseline.py --policy diffusion --checkpoint checkpoints/pusht_diffusion.ckpt --episodes 100 --device cuda
      ```
    - For further options and details, see the script help:
      ```bash
-     python scripts/ctm_eval.py --help
+     python scripts/eval_baseline.py --help
      ```
 
 4. **View Results**  
-   - Evaluation metrics and logs will be printed to the console and saved to the `results/` directory.
+   - Evaluation metrics and logs will be printed to the console, and if `--output` is given, saved to a JSON file.
    - For detailed explanations, see [docs/baselines_push_t.md](docs/baselines_push_t.md).
-
-5. **(Optional) Custom Evaluation**  
-   - Modify evaluation parameters or environment settings in `scripts/eval_baseline.py` as needed.
 
 ---
 
 - **Further Details:** See [docs/baselines_push_t.md](docs/baselines_push_t.md) for advanced usage, troubleshooting, and baseline results.
+
+#### Troubleshooting
+
+> **If you receive an ImportError for `lerobot` or the environment:**  
+> Make sure you have initialised the `external/lerobot` submodule:
+>
+> ```bash
+> git submodule update --init --recursive
+> ```
 
 ## Repository Structure
 
