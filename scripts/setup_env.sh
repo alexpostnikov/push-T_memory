@@ -34,14 +34,30 @@ else
     info "external/ctm already exists; skipping clone."
 fi
 
-# Install Python requirements
-info "Installing Python requirements..."
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
+# Python virtual environment setup
+if [ ! -d venv ]; then
+    info "Creating Python virtual environment in ./venv ..."
+    python3 -m venv venv
+else
+    info "Python virtual environment (venv) already exists."
+fi
 
-# Install LeRobot and CTM in editable mode
-info "Installing LeRobot and CTM in editable mode..."
-python3 -m pip install -e external/lerobot
-python3 -m pip install -e external/ctm
+# Activate the virtual environment
+# shellcheck disable=SC1091
+source venv/bin/activate
+info "Activated virtual environment."
 
-success "Environment setup complete! You can now develop and run experiments."
+# Upgrade pip and install Python requirements
+info "Installing Python requirements inside virtual environment..."
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# Install LeRobot and CTM in editable mode inside venv
+info "Installing LeRobot and CTM in editable mode inside venv..."
+pip install -e external/lerobot
+pip install -e external/ctm
+
+success "Environment setup complete! Virtual environment is active."
+echo ""
+echo "To deactivate the environment, run: deactivate"
+echo "To activate again later, run: source venv/bin/activate"
