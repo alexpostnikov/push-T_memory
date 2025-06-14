@@ -55,10 +55,11 @@ download_if_needed() {
     if command -v wget >/dev/null 2>&1; then
         if is_set "$HF_TOKEN"; then
             echo "Using Hugging Face token for authentication (HF_TOKEN)."
-            wget --header="Authorization: Bearer $HF_TOKEN" -O "$dest" "$url" 2>&1 | tee /tmp/dl_log_$
-            WGET_STATUS="${PIPESTATUS[0]}"
-            HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" /tmp/dl_log_$ || true)
-            rm -f /tmp/dl_log_$
+            TMP_LOG=$(mktemp)
+            wget --header="Authorization: Bearer $HF_TOKEN" -O "$dest" "$url" -q 2>"$TMP_LOG" 1>/dev/null
+            WGET_STATUS=$?
+            HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" "$TMP_LOG" || true)
+            rm -f "$TMP_LOG"
             if [ -n "$HTTP_CODE" ]; then
                 echo "✗ Unauthorized (401) when downloading $label checkpoint."
                 echo "If this checkpoint is private, provide an access token:"
@@ -71,10 +72,11 @@ download_if_needed() {
                 DL_SUCCESS=1
             fi
         else
-            wget -O "$dest" "$url" 2>&1 | tee /tmp/dl_log_$
-            WGET_STATUS="${PIPESTATUS[0]}"
-            HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" /tmp/dl_log_$ || true)
-            rm -f /tmp/dl_log_$
+            TMP_LOG=$(mktemp)
+            wget -O "$dest" "$url" -q 2>"$TMP_LOG" 1>/dev/null
+            WGET_STATUS=$?
+            HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" "$TMP_LOG" || true)
+            rm -f "$TMP_LOG"
             if [ -n "$HTTP_CODE" ]; then
                 echo "✗ Unauthorized (401) when downloading $label checkpoint."
                 echo "If this checkpoint is private, provide an access token:"
