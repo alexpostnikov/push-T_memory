@@ -7,5 +7,4 @@ seaborn
 pytorch-lightning
 tqdm
 pylatex
-latexmk
 jupyter
