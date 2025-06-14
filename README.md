@@ -1,8 +1,48 @@
 # CTM-ACT Push-T Integration
 
+# Installation & Environment Setup
+
+## 1. Python Version
+
+This project requires **Python 3.11** or newer.  
+Use either a Conda environment (recommended) or a manually created virtual environment with Python 3.11+.  
+**Do not mix conda and venv for this project. Use one or the other.**
+
+---
+
+## 2. Recommended: Conda Environment
+
+```bash
+conda create -n pushT_ctm python=3.11
+conda activate pushT_ctm
+pip install -r requirements.txt
+```
+
+---
+
+## 3. Alternative: Python 3.11+ venv
+
+If you do **not** use conda, ensure your system Python is 3.11+:
+
+```bash
+python3.11 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+---
+
+## 4. LaTeX Report Compilation
+
+To generate PDF reports, you need a working LaTeX installation with `latexmk` available **on your system path**.  
+`latexmk` is **not** a Python package and must be installed via your OS's package manager (e.g., apt, brew, MiKTeX), or you can use Overleaf for online compilation.
+
+---
+
 ## Quickstart
 
-Before running any code or notebooks, set up your development environment by running:
+Before running any code or notebooks, set up your development environment as described above.  
+If you wish to use the helper script, ensure you are already in your Conda or venv environment:
 
 ```bash
 ./scripts/setup_env.sh
