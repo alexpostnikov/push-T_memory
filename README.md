@@ -106,24 +106,38 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
    Ensure your environment is set up as described in the [Installation](#installation) and [Quickstart](#quickstart) sections above.
 
 2. **Download Pretrained Checkpoints**  
-   - Pretrained weights for ACT and diffusion models are either included in the repo or can be downloaded via the provided scripts.
-   - If required, run:
+   - Pretrained weights for ACT and diffusion models can be downloaded via the provided script, or manually using wget, or you may skip downloading and pass a Hugging Face repo-id directly to the evaluation script.
+   - To download with the helper script:
      ```bash
      ./scripts/download_checkpoints.sh
+     ```
+   - Or manually:
+     ```bash
+     # ACT policy (~210MB)
+     wget https://huggingface.co/pepijn223/act-pusht/resolve/main/model.safetensors -O checkpoints/pusht_act.safetensors
+
+     # Diffusion policy (~1GB)
+     wget https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safetensors -O checkpoints/pusht_diffusion.safetensors
      ```
    - **If the checkpoint repository is private you must provide a Hugging Face access token:**  
      ```bash
      export HF_TOKEN=&lt;your_token&gt; ; bash scripts/download_checkpoints.sh
      ```
+   - **Alternatively:** You may skip downloading and simply provide the repo-id (e.g. `lerobot/diffusion_pusht`) as the `--checkpoint` argument to the evaluation script.
 
 3. **Run Baseline Evaluation**  
    - To evaluate the ACT or Diffusion baselines, use the provided evaluation script:
      ```bash
-     python scripts/eval_baseline.py --policy act --checkpoint checkpoints/pusht_act.ckpt --episodes 100 --device cuda
+     python scripts/eval_baseline.py --policy act --checkpoint checkpoints/pusht_act.safetensors --episodes 100 --device cuda
      ```
      or, for Diffusion:
      ```bash
-     python scripts/eval_baseline.py --policy diffusion --checkpoint checkpoints/pusht_diffusion.ckpt --episodes 100 --device cuda
+     python scripts/eval_baseline.py --policy diffusion --checkpoint checkpoints/pusht_diffusion.safetensors --episodes 100 --device cuda
+     ```
+   - **(Alternative: Hugging Face repo-id)**  
+     You can also run, without manual download:
+     ```bash
+     python scripts/eval_baseline.py --policy diffusion --checkpoint lerobot/diffusion_pusht --episodes 100 --device cuda
      ```
    - For further options and details, see the script help:
      ```bash

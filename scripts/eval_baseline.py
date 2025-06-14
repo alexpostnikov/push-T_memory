@@ -34,7 +34,10 @@ def parse_args():
     )
     parser.add_argument(
         "--checkpoint", type=str, required=True,
-        help="Path to the pretrained policy checkpoint (.pth or .ckpt)"
+        help=(
+            "Path to the pretrained policy checkpoint (.ckpt, .pth, .safetensors) "
+            "or a Hugging Face repo-id (e.g. 'lerobot/diffusion_pusht')."
+        )
     )
     parser.add_argument(
         "--episodes", type=int, default=100,
@@ -110,26 +113,87 @@ def set_global_seed(seed):
 
 class PolicyWrapper:
     def __init__(self, policy_type, checkpoint_path, device):
+        # Try imports for safetensors and huggingface_hub, error nicely if missing
+        try:
+            import safetensors
+            import huggingface_hub
+        except ImportError as e:
+            missing = str(e).split("'")[-2] if "'" in str(e) else str(e)
+            print(f"Required package '{missing}' is not installed. Please run: pip install safetensors huggingface_hub")
+            sys.exit(1)
+
         PolicyClass = import_lerobot_policy(policy_type)
-        # Build model (assume default constructor, but handle checkpoint loading)
-        try:
-            self.policy = PolicyClass()
-        except Exception as e:
-            raise RuntimeError(f"Failed to instantiate {policy_type} policy: {e}")
-        # Load weights
-        state_dict = torch.load(checkpoint_path, map_location='cpu')
-        if "state_dict" in state_dict:
-            # .ckpt format
-            state_dict = state_dict["state_dict"]
-        # Remove 'module.' prefix if present (for DDP models)
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
-        try:
-            self.policy.load_state_dict(state_dict, strict=False)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load checkpoint: {e}")
-        self.policy.eval()
         self.device = device
-        self.policy.to(self.device)
+
+        # Check if checkpoint_path is a local file; otherwise, treat as HF repo-id
+        if os.path.exists(checkpoint_path):
+            # Local file: support .ckpt/.pth/.safetensors
+            ext = os.path.splitext(checkpoint_path)[1].lower()
+            try:
+                self.policy = PolicyClass()
+            except Exception as e:
+                raise RuntimeError(f"Failed to instantiate {policy_type} policy: {e}")
+            if ext == ".safetensors":
+                try:
+                    from safetensors.torch import load_file
+                except ImportError:
+                    print("safetensors is required to load .safetensors checkpoints. Install with: pip install safetensors")
+                    sys.exit(1)
+                state_dict = load_file(checkpoint_path, device="cpu")
+            else:
+                state_dict = torch.load(checkpoint_path, map_location='cpu')
+                if "state_dict" in state_dict:
+                    state_dict = state_dict["state_dict"]
+            # Remove 'module.' prefix if present (for DDP models)
+            state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+            try:
+                self.policy.load_state_dict(state_dict, strict=False)
+            except Exception as e:
+                raise RuntimeError(f"Failed to load checkpoint: {e}")
+            self.policy.eval()
+            self.policy.to(self.device)
+            print(f"✓ Loaded checkpoint from local file: {checkpoint_path}")
+        else:
+            # Assume Hugging Face Hub repo-id
+            try:
+                self.policy = PolicyClass.from_pretrained(checkpoint_path, device_map="cpu")
+                self.policy.eval()
+                self.policy.to(self.device)
+                print(f"✓ Loaded checkpoint from Hugging Face Hub repo: {checkpoint_path}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load checkpoint from Hugging Face Hub repo-id '{checkpoint_path}': {e}")
+
+    def act(self, obs):
+        # Handles single-observation input, returns action (numpy array)
+        obs_tensor = self._obs_to_tensor(obs)
+        with torch.no_grad():
+            if self.device == "cuda":
+                with torch.cuda.amp.autocast():
+                    action = self.policy(obs_tensor)
+            else:
+                action = self.policy(obs_tensor)
+        # Assume output is tensor (batch or single), move to CPU and numpy
+        if isinstance(action, tuple):
+            action = action[0]  # In case model returns (action, info)
+        if isinstance(action, torch.Tensor):
+            action = action.detach().cpu().numpy()
+        if action.ndim > 1:
+            action = action.squeeze(0)
+        return action
+
+    def _obs_to_tensor(self, obs):
+        # Accept dict or np.ndarray obs
+        if isinstance(obs, dict):
+            obs_tensor = {k: torch.from_numpy(np.asarray(v)).float().to(self.device) for k, v in obs.items()}
+        else:
+            obs_tensor = torch.from_numpy(np.asarray(obs)).float().to(self.device)
+        # Unsqueeze if needed (policy expects batch dim)
+        if isinstance(obs_tensor, dict):
+            obs_tensor = {k: v.unsqueeze(0) if v.ndim == 1 else v for k, v in obs_tensor.items()}
+        else:
+            if obs_tensor.ndim == 1:
+                obs_tensor = obs_tensor.unsqueeze(0)
+        return obs_tensor
 
     def act(self, obs):
         # Handles single-observation input, returns action (numpy array)
@@ -173,7 +237,7 @@ def main():
     seed = args.seed
 
     print(f"Evaluating {policy_type.upper()} policy on LeRobot-PushT-v0")
-    print(f"Checkpoint: {checkpoint}")
+    print(f"Checkpoint (local path or Hugging Face repo-id): {checkpoint}")
     print(f"Episodes: {episodes}")
     print(f"Device: {device}")
 

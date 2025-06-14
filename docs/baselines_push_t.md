@@ -47,21 +47,17 @@ python -m lerobot.datasets.download --task push_t --output $LEROBOT_DATA_DIR
 
 ## 3. Pre-trained Checkpoint Download
 
-Pre-trained checkpoints are hosted on HuggingFace. You can download using the HuggingFace CLI or `wget`.
+Pre-trained checkpoints are hosted on Hugging Face. You may either:
+- **A. Download the weights manually via wget (or the provided script),**
+- **B. Or pass the Hugging Face repo-id directly to the evaluation script (no download needed).**
 
-**A. Using HuggingFace CLI:**
+**A. Using wget (direct download):**
 ```bash
-pip install huggingface_hub
-huggingface-cli login  # Authenticate with your HuggingFace account/token
+# ACT policy (~210MB)
+wget https://huggingface.co/pepijn223/act-pusht/resolve/main/model.safetensors -O checkpoints/pusht_act.safetensors
 
-# Clone the checkpoint repository
-huggingface-cli repo clone lerobot/pusht-act-checkpoint
-```
-
-**B. Using wget (direct download):**
-```bash
-wget https://huggingface.co/lerobot/pusht-act-checkpoint/resolve/main/pusht_act.ckpt -O checkpoints/pusht_act.ckpt
-wget https://huggingface.co/lerobot/pusht-diffusion-checkpoint/resolve/main/pusht_diffusion.ckpt -O checkpoints/pusht_diffusion.ckpt
+# Diffusion policy (~1GB)
+wget https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safetensors -O checkpoints/pusht_diffusion.safetensors
 ```
 
 > **If the checkpoint repository is private you must provide a Hugging Face access token:**  
@@ -69,12 +65,16 @@ wget https://huggingface.co/lerobot/pusht-diffusion-checkpoint/resolve/main/push
 > export HF_TOKEN=&lt;your_token&gt; ; bash scripts/download_checkpoints.sh
 > ```
 
+**B. (Alternative) Pass Hugging Face repo-id directly:**
+You may skip downloading and simply provide the repo-id (e.g. `lerobot/diffusion_pusht`) as the `--checkpoint` argument to the evaluation script.  
+The script will automatically download and cache the weights using Hugging Face Hub.
+
 **Checkpoint Table:**
 
-| Policy    | File Name               | Size     | HuggingFace Repo                          |
-|-----------|------------------------|----------|--------------------------------------------|
-| ACT       | `pusht_act.ckpt`       | ~80 MB   | `lerobot/pusht-act-checkpoint`             |
-| Diffusion | `pusht_diffusion.ckpt` | ~120 MB  | `lerobot/pusht-diffusion-checkpoint`       |
+| Policy    | File Name                        | Size     | Hugging Face Repo                    |
+|-----------|----------------------------------|----------|--------------------------------------|
+| ACT       | pusht_act.safetensors            | ~210 MB  | `pepijn223/act-pusht`                |
+| Diffusion | pusht_diffusion.safetensors      | ~1 GB    | `lerobot/diffusion_pusht`            |
 
 > Place downloaded checkpoints in your `checkpoints/` directory (create if not present).
 
@@ -84,11 +84,20 @@ wget https://huggingface.co/lerobot/pusht-diffusion-checkpoint/resolve/main/push
 
 Use the provided evaluation script to run policy evaluation on Push-T.
 
-**Example command:**
+**Example command (local file):**
 ```bash
-python external/lerobot/examples/evaluate_policy.py \
-  --checkpoint checkpoints/pusht_act.ckpt \
-  --task push_t \
+python scripts/eval_baseline.py \
+  --policy act \
+  --checkpoint checkpoints/pusht_act.safetensors \
+  --episodes 100 \
+  --device cuda
+```
+
+**Example command (using Hugging Face repo-id, no download needed):**
+```bash
+python scripts/eval_baseline.py \
+  --policy diffusion \
+  --checkpoint lerobot/diffusion_pusht \
   --episodes 100 \
   --device cuda
 ```
@@ -100,13 +109,13 @@ Success Rate: 0.83
 Mean Reward: 0.67
 Episode Length: 52.1
 ```
-*(Numbers are typical for the ACT baseline; they may vary slightly run-to-run.)*
+*(Numbers are typical for ACT baseline; they may vary slightly run-to-run.)*
 
 **Saving results to JSON:**
 ```bash
-python external/lerobot/examples/evaluate_policy.py \
-  --checkpoint checkpoints/pusht_act.ckpt \
-  --task push_t \
+python scripts/eval_baseline.py \
+  --policy act \
+  --checkpoint checkpoints/pusht_act.safetensors \
   --episodes 100 \
   --device cuda \
   --output results/pusht_act_eval.json
@@ -118,7 +127,8 @@ python external/lerobot/examples/evaluate_policy.py \
 
 - **CUDA Mismatch:** If you see errors about CUDA versions, ensure your PyTorch and CUDA toolkit versions are compatible.
 - **Dataset Not Found:** Make sure `$LEROBOT_DATA_DIR` is set and contains the Push-T dataset. Re-run the dataset download command if necessary.
-- **Checkpoint Not Found:** Double-check the checkpoint path and file name.
+- **Checkpoint Not Found:** Double-check the checkpoint path, file name, or Hugging Face repo-id.
+- **Hugging Face Hub Auth:** Some models may require a login or access token.
 - **Mujoco License:** Mujoco requires a license; see [Mujoco website](https://mujoco.org/) for details.
 - **Environment Variable:** Always `export LEROBOT_DATA_DIR` in the same shell before running scripts.
 - **Simulation Fails to Render:** On headless servers, use `--no-render` flag if available, or configure a virtual display (`xvfb`).

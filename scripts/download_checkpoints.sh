@@ -3,7 +3,7 @@
 # download_checkpoints.sh
 #
 # Helper script to download pretrained Push-T baseline checkpoints (ACT and Diffusion)
-# for this project. Downloads files from HuggingFace if not present in ./checkpoints/.
+# for this project. Downloads files from Hugging Face if not present in ./checkpoints/.
 #
 # Usage:
 #   bash scripts/download_checkpoints.sh
@@ -13,17 +13,20 @@
 #
 # The script will:
 #   - Create a 'checkpoints/' directory if it does not exist.
-#   - Download pusht_act.ckpt (~80MB) and pusht_diffusion.ckpt (~120MB) if missing or empty.
+#   - Download pusht_act.safetensors (~210MB) and pusht_diffusion.safetensors (~1GB) if missing or empty.
 #   - Skip download if file exists and is non-empty.
 #
 
 set -e
 
-ACT_URL="https://huggingface.co/lerobot/pusht-act-checkpoint/resolve/main/pusht_act.ckpt"
-DIFF_URL="https://huggingface.co/lerobot/pusht-diffusion-checkpoint/resolve/main/pusht_diffusion.ckpt"
+# Updated checkpoint sources (2024):
+#   - ACT policy:     https://huggingface.co/pepijn223/act-pusht/resolve/main/model.safetensors (~210MB)
+#   - Diffusion:      https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safetensors (~1GB)
+ACT_URL="https://huggingface.co/pepijn223/act-pusht/resolve/main/model.safetensors"
+DIFF_URL="https://huggingface.co/lerobot/diffusion_pusht/resolve/main/model.safetensors"
 CKPT_DIR="checkpoints"
-ACT_FILE="$CKPT_DIR/pusht_act.ckpt"
-DIFF_FILE="$CKPT_DIR/pusht_diffusion.ckpt"
+ACT_FILE="$CKPT_DIR/pusht_act.safetensors"
+DIFF_FILE="$CKPT_DIR/pusht_diffusion.safetensors"
 
 # Check for wget or curl
 if command -v wget >/dev/null 2>&1; then
@@ -116,8 +119,8 @@ download_if_needed() {
 
 ALL_OK=0
 
-download_if_needed "$ACT_URL" "$ACT_FILE" "ACT" || ALL_OK=1
-download_if_needed "$DIFF_URL" "$DIFF_FILE" "Diffusion" || ALL_OK=1
+download_if_needed "$ACT_URL" "$ACT_FILE" "ACT (~210MB)" || ALL_OK=1
+download_if_needed "$DIFF_URL" "$DIFF_FILE" "Diffusion (~1GB)" || ALL_OK=1
 
 if [ "$ALL_OK" -eq 0 ]; then
     echo "✅ All requested checkpoints are present in '$CKPT_DIR/'."
