@@ -28,15 +28,7 @@ CKPT_DIR="checkpoints"
 ACT_FILE="$CKPT_DIR/pusht_act.safetensors"
 DIFF_FILE="$CKPT_DIR/pusht_diffusion.safetensors"
 
-# Check for wget or curl
-if command -v wget >/dev/null 2>&1; then
-    DL_CMD="wget"
-elif command -v curl >/dev/null 2>&1; then
-    DL_CMD="curl"
-else
-    echo "Error: Neither 'wget' nor 'curl' is installed. Please install one to proceed." >&2
-    exit 1
-fi
+# No global DL_CMD; we'll attempt wget and/or curl inside the download logic
 
 mkdir -p "$CKPT_DIR"
 
@@ -56,31 +48,29 @@ download_if_needed() {
     fi
 
     echo "→ Downloading $label checkpoint to $dest ..."
-    HTTP_CODE=""
-    if is_set "$HF_TOKEN"; then
-        echo "Using Hugging Face token for authentication (HF_TOKEN)."
-        if [ "$DL_CMD" = "wget" ]; then
+
+    DL_SUCCESS=1
+
+    # 1. Try wget if available
+    if command -v wget >/dev/null 2>&1; then
+        if is_set "$HF_TOKEN"; then
+            echo "Using Hugging Face token for authentication (HF_TOKEN)."
             wget --header="Authorization: Bearer $HF_TOKEN" -O "$dest" "$url" 2>&1 | tee /tmp/dl_log_$
             WGET_STATUS="${PIPESTATUS[0]}"
             HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" /tmp/dl_log_$ || true)
             rm -f /tmp/dl_log_$
-            if [ "$WGET_STATUS" -ne 0 ]; then
-                echo "✗ Failed to download $label checkpoint to $dest." >&2
-                return 1
+            if [ -n "$HTTP_CODE" ]; then
+                echo "✗ Unauthorized (401) when downloading $label checkpoint."
+                echo "If this checkpoint is private, provide an access token:"
+                echo "    export HF_TOKEN=hf_your_token && bash scripts/download_checkpoints.sh"
+                DL_SUCCESS=1
+            elif [ "$WGET_STATUS" -eq 0 ] && [ -s "$dest" ]; then
+                echo "✓ Downloaded $label checkpoint successfully."
+                return 0
+            else
+                DL_SUCCESS=1
             fi
         else
-            # curl: -f (fail on >=400), -s (silent), -S (show errors), -L (follow redirects)
-            HTTP_STATUS=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $HF_TOKEN" -L -o "$dest" "$url")
-            if [ "$HTTP_STATUS" = "401" ]; then
-                echo "✗ Unauthorized (401) when downloading $label checkpoint. Check your HF_TOKEN." >&2
-                return 1
-            elif [ "$HTTP_STATUS" -ge 400 ]; then
-                echo "✗ Failed to download $label checkpoint to $dest (HTTP $HTTP_STATUS)." >&2
-                return 1
-            fi
-        fi
-    else
-        if [ "$DL_CMD" = "wget" ]; then
             wget -O "$dest" "$url" 2>&1 | tee /tmp/dl_log_$
             WGET_STATUS="${PIPESTATUS[0]}"
             HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" /tmp/dl_log_$ || true)
@@ -89,10 +79,35 @@ download_if_needed() {
                 echo "✗ Unauthorized (401) when downloading $label checkpoint."
                 echo "If this checkpoint is private, provide an access token:"
                 echo "    export HF_TOKEN=hf_your_token && bash scripts/download_checkpoints.sh"
-                return 1
-            elif [ "$WGET_STATUS" -ne 0 ]; then
-                echo "✗ Failed to download $label checkpoint to $dest." >&2
-                return 1
+                DL_SUCCESS=1
+            elif [ "$WGET_STATUS" -eq 0 ] && [ -s "$dest" ]; then
+                echo "✓ Downloaded $label checkpoint successfully."
+                return 0
+            else
+                DL_SUCCESS=1
+            fi
+        fi
+    else
+        DL_SUCCESS=1
+    fi
+
+    # If wget failed or file empty, try curl if available
+    if [ ! -s "$dest" ] && command -v curl >/dev/null 2>&1; then
+        echo "wget failed, trying curl…"
+        if is_set "$HF_TOKEN"; then
+            echo "Using Hugging Face token for authentication (HF_TOKEN)."
+            HTTP_STATUS=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $HF_TOKEN" -L -o "$dest" "$url")
+            if [ "$HTTP_STATUS" = "401" ]; then
+                echo "✗ Unauthorized (401) when downloading $label checkpoint. Check your HF_TOKEN." >&2
+                DL_SUCCESS=1
+            elif [ "$HTTP_STATUS" -ge 400 ]; then
+                echo "✗ Failed to download $label checkpoint to $dest (HTTP $HTTP_STATUS)." >&2
+                DL_SUCCESS=1
+            elif [ -s "$dest" ]; then
+                echo "✓ Downloaded $label checkpoint successfully."
+                return 0
+            else
+                DL_SUCCESS=1
             fi
         else
             HTTP_STATUS=$(curl -s -w "%{http_code}" -L -o "$dest" "$url")
@@ -100,19 +115,29 @@ download_if_needed() {
                 echo "✗ Unauthorized (401) when downloading $label checkpoint."
                 echo "If this checkpoint is private, provide an access token:"
                 echo "    export HF_TOKEN=hf_your_token && bash scripts/download_checkpoints.sh"
-                return 1
+                DL_SUCCESS=1
             elif [ "$HTTP_STATUS" -ge 400 ]; then
                 echo "✗ Failed to download $label checkpoint to $dest (HTTP $HTTP_STATUS)." >&2
-                return 1
+                DL_SUCCESS=1
+            elif [ -s "$dest" ]; then
+                echo "✓ Downloaded $label checkpoint successfully."
+                return 0
+            else
+                DL_SUCCESS=1
             fi
         fi
     fi
 
+    # If curl not available, or both attempts failed
     if [ -s "$dest" ]; then
         echo "✓ Downloaded $label checkpoint successfully."
         return 0
     else
-        echo "✗ Failed to download $label checkpoint to $dest." >&2
+        if ! command -v wget >/dev/null 2>&1 && ! command -v curl >/dev/null 2>&1; then
+            echo "Error: Neither 'wget' nor 'curl' is installed. Please install one to proceed." >&2
+        else
+            echo "✗ Failed to download $label checkpoint to $dest." >&2
+        fi
         return 1
     fi
 }
