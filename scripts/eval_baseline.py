@@ -50,15 +50,23 @@ def import_lerobot_policy(policy_type):
     """
     Dynamically import the correct policy class based on type.
     """
-    if policy_type == "act":
-        # ACT policy
-        from src.lerobot.policies.act_policy import ACTPolicy
-        return ACTPolicy
-    elif policy_type == "diffusion":
-        from src.lerobot.policies.diffusion_policy import DiffusionPolicy
-        return DiffusionPolicy
-    else:
-        raise ValueError(f"Unknown policy type: {policy_type}")
+    try:
+        if policy_type == "act":
+            from lerobot.models.act import ACTPolicy
+            return ACTPolicy
+        elif policy_type == "diffusion":
+            from lerobot.models.diffusion import DiffusionPolicy
+            return DiffusionPolicy
+        else:
+            raise ValueError(f"Unknown policy type: {policy_type}")
+    except ImportError as e:
+        msg = (
+            f"Could not import LeRobot policy class for '{policy_type}'.\n"
+            "Ensure the external/lerobot submodule is initialised and in PYTHONPATH.\n"
+            "   git submodule update --init --recursive\n"
+            f"Original error: {e}"
+        )
+        raise ImportError(msg)
 
 class LegacyPolicyWrapper:
     """
@@ -279,15 +287,18 @@ def parse_args():
 def import_lerobot_env():
     """
     Import and initialize the LeRobot environment.
-    (Placeholder: replace with actual env loading as appropriate.)
     """
-    # Example code, replace with actual implementation as needed
-    import gymnasium as gym
     try:
+        import gymnasium as gym
+        import lerobot.envs  # register envs
         env = gym.make("LeRobot-PushT-v0")
-    except Exception:
-        env = gym.make("LeRobot-PushT-v0")  # fallback or custom
-    return env
+        return env
+    except ImportError as e:
+        raise ImportError(
+            "LeRobot env not found. Initialise submodule: git submodule update --init --recursive"
+        )
+    except gym.error.Error as e:
+        raise RuntimeError(f"Could not create environment: {e}")
 
 ################################################################################
 # LOGGING HELPERS (unchanged)
