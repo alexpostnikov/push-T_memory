@@ -1,6 +1,6 @@
-[submodule "external/lerobot"]
-	path = external/lerobot
-	url = https://github.com/huggingface/lerobot.git
+[submodule "external/ctm"]
+	path = external/ctm
+	url = https://github.com/your-org/ctm.git
 
 [submodule "external/ctm"]
 	path = external/ctm

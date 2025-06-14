@@ -46,23 +46,14 @@ pip install -r requirements.txt
 
 # Install LeRobot and CTM dependencies if present, then install in editable mode if possible
 for MODULE in lerobot ctm; do
-    if [ -d "external/$MODULE" ]; then
-        # 1) Install dependencies if any
-        if [ -f "external/$MODULE/requirements.txt" ]; then
-            info "Installing requirements for $MODULE..."
-            pip install -r "external/$MODULE/requirements.txt"
-        fi
-        # 2) Editable install if possible
-        if [ -f "external/$MODULE/setup.py" ] || [ -f "external/$MODULE/pyproject.toml" ]; then
-            info "Installing $MODULE in editable mode..."
-            pip install -e "external/$MODULE"
-        else
-            warn "$MODULE has no setup.py or pyproject.toml. Skipping editable install and adding to PYTHONPATH."
-            export PYTHONPATH="${PYTHONPATH}:$(pwd)/external/$MODULE"
-        fi
-    else
-        warn "external/$MODULE directory not found. Skipping."
-    fi
+  if [ "$MODULE" = "lerobot" ]; then
+    echo "LeRobot is now installed via pip (see requirements.txt). Skipping submodule setup."
+    # No longer needed: git submodule update --init external/lerobot
+    # No longer needed: pip install -e external/lerobot[pusht]
+  elif [ "$MODULE" = "ctm" ]; then
+    git submodule update --init external/ctm
+    pip install -e external/ctm
+  fi
 done
 
 echo ""

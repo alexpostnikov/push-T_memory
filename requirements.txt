@@ -20,3 +20,7 @@ gymnasium
 torchmetrics
 
 # (Add any other core dependencies needed for running main scripts below)
+
+lerobot[pusht] @ git+https://github.com/huggingface/lerobot.git
+
+lerobot[pusht] @ git+https://github.com/huggingface/lerobot.git

@@ -9,11 +9,6 @@ import datetime
 from collections import defaultdict
 
 from pathlib import Path
-# Auto-add external/lerobot to PYTHONPATH if present
-_ROOT = Path(__file__).resolve().parent.parent
-_LERO_DIR = _ROOT / "external" / "lerobot"
-if _LERO_DIR.exists() and str(_LERO_DIR) not in sys.path:
-    sys.path.insert(0, str(_LERO_DIR))
 
 try:
     import torch
