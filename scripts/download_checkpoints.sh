@@ -26,9 +26,9 @@ ACT_FILE="$CKPT_DIR/pusht_act.ckpt"
 DIFF_FILE="$CKPT_DIR/pusht_diffusion.ckpt"
 
 # Check for wget or curl
-if command -v wget &>/dev/null; then
+if command -v wget >/dev/null 2>&1; then
     DL_CMD="wget"
-elif command -v curl &>/dev/null; then
+elif command -v curl >/dev/null 2>&1; then
     DL_CMD="curl"
 else
     echo "Error: Neither 'wget' nor 'curl' is installed. Please install one to proceed." >&2
@@ -37,24 +37,75 @@ fi
 
 mkdir -p "$CKPT_DIR"
 
-download_if_needed() {
-    local url="$1"
-    local dest="$2"
-    local label="$3"
+# Helper: test if a variable is set and non-empty
+is_set() {
+    [ "${1+set}" = "set" ] && [ -n "$1" ]
+}
 
-    if [[ -s "$dest" ]]; then
+download_if_needed() {
+    url="$1"
+    dest="$2"
+    label="$3"
+
+    if [ -s "$dest" ]; then
         echo "✓ $label checkpoint already exists and is non-empty: $dest"
         return 0
     fi
 
     echo "→ Downloading $label checkpoint to $dest ..."
-    if [[ "$DL_CMD" == "wget" ]]; then
-        wget -O "$dest" "$url"
+    HTTP_CODE=""
+    if is_set "$HF_TOKEN"; then
+        echo "Using Hugging Face token for authentication (HF_TOKEN)."
+        if [ "$DL_CMD" = "wget" ]; then
+            wget --header="Authorization: Bearer $HF_TOKEN" -O "$dest" "$url" 2>&1 | tee /tmp/dl_log_$
+            WGET_STATUS="${PIPESTATUS[0]}"
+            HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" /tmp/dl_log_$ || true)
+            rm -f /tmp/dl_log_$
+            if [ "$WGET_STATUS" -ne 0 ]; then
+                echo "✗ Failed to download $label checkpoint to $dest." >&2
+                return 1
+            fi
+        else
+            # curl: -f (fail on >=400), -s (silent), -S (show errors), -L (follow redirects)
+            HTTP_STATUS=$(curl -s -w "%{http_code}" -H "Authorization: Bearer $HF_TOKEN" -L -o "$dest" "$url")
+            if [ "$HTTP_STATUS" = "401" ]; then
+                echo "✗ Unauthorized (401) when downloading $label checkpoint. Check your HF_TOKEN." >&2
+                return 1
+            elif [ "$HTTP_STATUS" -ge 400 ]; then
+                echo "✗ Failed to download $label checkpoint to $dest (HTTP $HTTP_STATUS)." >&2
+                return 1
+            fi
+        fi
     else
-        curl -L -o "$dest" "$url"
+        if [ "$DL_CMD" = "wget" ]; then
+            wget -O "$dest" "$url" 2>&1 | tee /tmp/dl_log_$
+            WGET_STATUS="${PIPESTATUS[0]}"
+            HTTP_CODE=$(grep -o "HTTP/[0-9.]* 401" /tmp/dl_log_$ || true)
+            rm -f /tmp/dl_log_$
+            if [ -n "$HTTP_CODE" ]; then
+                echo "✗ Unauthorized (401) when downloading $label checkpoint."
+                echo "If this checkpoint is private, provide an access token:"
+                echo "    export HF_TOKEN=hf_your_token && bash scripts/download_checkpoints.sh"
+                return 1
+            elif [ "$WGET_STATUS" -ne 0 ]; then
+                echo "✗ Failed to download $label checkpoint to $dest." >&2
+                return 1
+            fi
+        else
+            HTTP_STATUS=$(curl -s -w "%{http_code}" -L -o "$dest" "$url")
+            if [ "$HTTP_STATUS" = "401" ]; then
+                echo "✗ Unauthorized (401) when downloading $label checkpoint."
+                echo "If this checkpoint is private, provide an access token:"
+                echo "    export HF_TOKEN=hf_your_token && bash scripts/download_checkpoints.sh"
+                return 1
+            elif [ "$HTTP_STATUS" -ge 400 ]; then
+                echo "✗ Failed to download $label checkpoint to $dest (HTTP $HTTP_STATUS)." >&2
+                return 1
+            fi
+        fi
     fi
 
-    if [[ -s "$dest" ]]; then
+    if [ -s "$dest" ]; then
         echo "✓ Downloaded $label checkpoint successfully."
         return 0
     else
@@ -68,7 +119,7 @@ ALL_OK=0
 download_if_needed "$ACT_URL" "$ACT_FILE" "ACT" || ALL_OK=1
 download_if_needed "$DIFF_URL" "$DIFF_FILE" "Diffusion" || ALL_OK=1
 
-if [[ $ALL_OK -eq 0 ]]; then
+if [ "$ALL_OK" -eq 0 ]; then
     echo "✅ All requested checkpoints are present in '$CKPT_DIR/'."
     exit 0
 else

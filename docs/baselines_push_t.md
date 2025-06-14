@@ -64,6 +64,11 @@ wget https://huggingface.co/lerobot/pusht-act-checkpoint/resolve/main/pusht_act.
 wget https://huggingface.co/lerobot/pusht-diffusion-checkpoint/resolve/main/pusht_diffusion.ckpt -O checkpoints/pusht_diffusion.ckpt
 ```
 
+> **If the checkpoint repository is private you must provide a Hugging Face access token:**  
+> ```bash
+> export HF_TOKEN=&lt;your_token&gt; ; bash scripts/download_checkpoints.sh
+> ```
+
 **Checkpoint Table:**
 
 | Policy    | File Name               | Size     | HuggingFace Repo                          |
