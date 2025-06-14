@@ -1,0 +1,7 @@
+[submodule "external/lerobot"]
+	path = external/lerobot
+	url = https://github.com/huggingface/lerobot.git
+
+[submodule "external/ctm"]
+	path = external/ctm
+	url = https://github.com/SakanaAI/continuous-thought-machines.git

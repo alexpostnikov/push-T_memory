@@ -1,3 +1,9 @@
+# =======================
+# Core project requirements for this repository
+# (LeRobot and CTM dependencies are handled via their own requirements.txt files
+# and are NOT duplicated here. See external/lerobot/ and external/ctm/.)
+# =======================
+
 torch>=2.0
 hydra-core
 numpy
@@ -8,3 +14,9 @@ pytorch-lightning
 tqdm
 pylatex
 jupyter
+
+# Example baseline evaluation dependencies (add more as needed):
+gymnasium
+torchmetrics
+
+# (Add any other core dependencies needed for running main scripts below)
