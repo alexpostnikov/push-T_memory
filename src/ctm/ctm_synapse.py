@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.nn import MultiheadAttention
 
 
 class CTMSynapseWrapper(nn.Module):
@@ -43,7 +44,21 @@ class CTMSynapseWrapper(nn.Module):
             Output tensor, possibly synchronized across ticks.
         """
         batch_size = x.shape[0]
-        # Reset state if shape mismatch
+
+        if isinstance(self.module, MultiheadAttention):
+            # Ensure state_history buffer size matches so external getters still valid
+            if self.state_history.shape[0] != batch_size or self.state_history.shape[1] != self.num_neurons or self.state_history.shape[2] != self.ticks:
+                self.tick_reset(batch_size)
+            # Forward MultiheadAttention: (x, x, x) (batch_first is assumed True)
+            out, _ = self.module(x, x, x)
+            # state_history: fill with dummy zeros to keep external APIs valid
+            if self.state_history.shape != (batch_size, self.num_neurons, self.ticks):
+                self.state_history = torch.zeros(batch_size, self.num_neurons, self.ticks, device=self.device)
+            # sync_mask: dummy zeros
+            self.sync_mask = torch.zeros(batch_size, self.num_neurons, device=self.device)
+            return F.relu(out)
+
+        # Reset state if shape mismatch (legacy path)
         if self.state_history.shape[0] != batch_size:
             self.tick_reset(batch_size)
 
