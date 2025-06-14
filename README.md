@@ -94,7 +94,43 @@ If you wish to use the helper script, ensure you are already in your Conda or ve
 
 This script will create external dependencies, install Python requirements, and set up all necessary packages for development and experimentation.
 
-- **Run Baseline Policies:** See [docs/baselines_push_t.md](docs/baselines_push_t.md) for step-by-step instructions to evaluate baseline ACT/Diffusion models on the Push-T task using pre-trained checkpoints.
+---
+
+## 🚀 Running Baselines
+
+You can evaluate baseline ACT and diffusion policies on the Push‑T environment using pre-trained checkpoints.  
+**Follow these steps to run the baselines:**
+
+1. **Install Dependencies**  
+   Ensure your environment is set up as described in the [Installation](#installation) and [Quickstart](#quickstart) sections above.
+
+2. **Download Pretrained Checkpoints**  
+   - Pretrained weights for ACT and diffusion models are either included in the repo or can be downloaded via the provided scripts.
+   - If required, run:
+     ```bash
+     ./scripts/download_checkpoints.sh
+     ```
+
+3. **Run Baseline Evaluation**  
+   - To evaluate the ACT baseline:
+     ```bash
+     python scripts/eval_baseline.py --policy act --checkpoint path/to/act_checkpoint.pth
+     ```
+   - To evaluate the diffusion baseline:
+     ```bash
+     python scripts/eval_baseline.py --policy diffusion --checkpoint path/to/diffusion_checkpoint.pth
+     ```
+
+4. **View Results**  
+   - Evaluation metrics and logs will be printed to the console and saved to the `results/` directory.
+   - For detailed explanations, see [docs/baselines_push_t.md](docs/baselines_push_t.md).
+
+5. **(Optional) Custom Evaluation**  
+   - Modify evaluation parameters or environment settings in `scripts/eval_baseline.py` as needed.
+
+---
+
+- **Further Details:** See [docs/baselines_push_t.md](docs/baselines_push_t.md) for advanced usage, troubleshooting, and baseline results.
 
 ## Repository Structure
 
