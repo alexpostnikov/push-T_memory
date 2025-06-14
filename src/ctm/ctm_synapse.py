@@ -58,6 +58,16 @@ class CTMSynapseWrapper(nn.Module):
             self.sync_mask = torch.zeros(batch_size, self.num_neurons, device=self.device)
             return F.relu(out)
 
+        # For modules that output more than 2D, bypass tick logic and return activated output
+        out = self.module(x)
+        if out.dim() > 2:
+            if self.state_history.shape[0] != batch_size or self.state_history.shape[1] != self.num_neurons or self.state_history.shape[2] != self.ticks:
+                self.tick_reset(batch_size)
+            if self.state_history.shape != (batch_size, self.num_neurons, self.ticks):
+                self.state_history = torch.zeros(batch_size, self.num_neurons, self.ticks, device=self.device)
+            self.sync_mask = torch.zeros(batch_size, self.num_neurons, device=self.device)
+            return F.relu(out)
+
         # Reset state if shape mismatch (legacy path)
         if self.state_history.shape[0] != batch_size:
             self.tick_reset(batch_size)
@@ -74,7 +84,7 @@ class CTMSynapseWrapper(nn.Module):
                 sync_metric = torch.std(self.state_history[:, :, :t+1], dim=-1)
             else:
                 sync_metric = torch.zeros_like(out)
-            # Gating: fire if sync_metric > threshold
+            # Gating: fire if sync_metric > self.sync_threshold
             fired = (sync_metric > self.sync_threshold).float()
             self.sync_mask = fired
             # Only keep output where neurons "fire"
