@@ -51,6 +51,30 @@ def parse_args():
         action="store_true",
         help="Render the environment.",
     )
+    parser.add_argument(
+        "--log-dir",
+        type=str,
+        default="results",
+        help="Directory to save result logs (default: results)",
+    )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        default=False,
+        help="Log results to Weights & Biases",
+    )
+    parser.add_argument(
+        "--wandb-project",
+        type=str,
+        default="push-t-baselines",
+        help="wandb project name (default: push-t-baselines)",
+    )
+    parser.add_argument(
+        "--wandb-entity",
+        type=str,
+        default=None,
+        help="wandb entity (optional)",
+    )
     return parser.parse_args()
 
 
@@ -94,17 +118,67 @@ class PolicyWrapper:
                 obs_tensor = obs_tensor.unsqueeze(0)
         return obs_tensor
 
+import csv
+import datetime
+
+def ensure_dir(path):
+    os.makedirs(path, exist_ok=True)
+
+def append_history(log_dir, row_dict):
+    csv_path = os.path.join(log_dir, "history.csv")
+    is_new = not os.path.exists(csv_path)
+    with open(csv_path, "a", newline="") as f:
+        writer = csv.DictWriter(
+            f,
+            fieldnames=[
+                "timestamp",
+                "policy",
+                "checkpoint",
+                "success_rate",
+                "mean_reward",
+                "mean_ep_len",
+                "mean_latency",
+                "episodes",
+            ],
+        )
+        if is_new:
+            writer.writeheader()
+        writer.writerow(row_dict)
+
+def update_leaderboard(log_dir, key, sr, metrics_dict):
+    leaderboard_path = os.path.join(log_dir, "leaderboard.json")
+    if os.path.exists(leaderboard_path):
+        with open(leaderboard_path, "r") as f:
+            leaderboard = json.load(f)
+    else:
+        leaderboard = {}
+    prev = leaderboard.get(key)
+    if not prev or sr > prev.get("success_rate", -float("inf")):
+        leaderboard[key] = dict(success_rate=sr, **metrics_dict)
+        with open(leaderboard_path, "w") as f:
+            json.dump(leaderboard, f, indent=2)
+        print(f"New best SR for {key}: {sr:.3f}")
+        return True
+    return False
+
 def main():
     args = parse_args()
-    device = args.device or auto_device()
-    episodes = args.episodes
-    policy_type = args.policy
-    checkpoint = args.checkpoint
-    output_path = args.output
-    seed = args.seed
+    # Adapted variable names for backward compatibility
+    policy_path = getattr(args, "policy_path", None)
+    env_name = getattr(args, "env", None)
+    episodes = getattr(args, "n_episodes", getattr(args, "episodes", 10))
+    render = getattr(args, "render", False)
+    log_dir = getattr(args, "log_dir", "results")
+    wandb_flag = getattr(args, "wandb", False)
+    wandb_project = getattr(args, "wandb_project", "push-t-baselines")
+    wandb_entity = getattr(args, "wandb_entity", None)
+    output_path = getattr(args, "output", None)
+    seed = getattr(args, "seed", None)
 
-    print(f"Evaluating {policy_type.upper()} policy on LeRobot-PushT-v0")
-    print(f"Checkpoint (local path or Hugging Face repo-id): {checkpoint}")
+    device = getattr(args, "device", "cpu") if hasattr(args, "device") else "cpu"
+
+    print(f"Evaluating policy on LeRobot-PushT-v0")
+    print(f"Checkpoint (local path or Hugging Face repo-id): {policy_path}")
     print(f"Episodes: {episodes}")
     print(f"Device: {device}")
 
@@ -114,7 +188,7 @@ def main():
 
     # Load policy
     try:
-        policy = PolicyWrapper(policy_type, checkpoint, device)
+        policy = PolicyWrapper(policy_path, device)
     except Exception as e:
         print(str(e))
         sys.exit(1)
@@ -175,10 +249,10 @@ def main():
 
     # Aggregate metrics
     agg_metrics = dict(
-        success_rate = success_count / episodes,
-        mean_reward = total_reward / episodes,
-        mean_ep_len = total_steps / episodes,
-        mean_latency = total_latency / episodes,
+        success_rate = success_count / episodes if episodes else 0.0,
+        mean_reward = total_reward / episodes if episodes else 0.0,
+        mean_ep_len = total_steps / episodes if episodes else 0.0,
+        mean_latency = total_latency / episodes if episodes else 0.0,
     )
 
     print("==== Baseline Evaluation Results ====")
@@ -186,6 +260,51 @@ def main():
     print(f"Mean Reward: {agg_metrics['mean_reward']:.3f}")
     print(f"Mean Episode Length: {agg_metrics['mean_ep_len']:.2f}")
     print(f"Mean Policy Latency (secs): {agg_metrics['mean_latency'] * 1000:.2f} ms")
+
+    # --- BEGIN LOGGING AND W&B INTEGRATION ---
+
+    # Ensure the log directory exists
+    ensure_dir(log_dir)
+
+    # Prepare row for history.csv
+    now = datetime.datetime.now().isoformat(timespec="seconds")
+    history_row = dict(
+        timestamp=now,
+        policy=os.path.splitext(os.path.basename(policy_path))[0] if policy_path else "",
+        checkpoint=policy_path,
+        success_rate=agg_metrics["success_rate"],
+        mean_reward=agg_metrics["mean_reward"],
+        mean_ep_len=agg_metrics["mean_ep_len"],
+        mean_latency=agg_metrics["mean_latency"],
+        episodes=episodes,
+    )
+    append_history(log_dir, history_row)
+
+    # Update leaderboard.json
+    leaderboard_key = f"{history_row['policy']}|{history_row['checkpoint']}"
+    update_leaderboard(log_dir, leaderboard_key, agg_metrics["success_rate"], agg_metrics)
+
+    # Weights & Biases logging (optional)
+    if wandb_flag:
+        try:
+            import wandb
+        except ImportError:
+            print("WARNING: wandb not installed. Skipping W&B logging.")
+        else:
+            wandb_kwargs = dict(
+                project=wandb_project,
+                name=f"{history_row['policy']}_{os.path.basename(history_row['checkpoint'])}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}",
+                config={
+                    "episodes": episodes,
+                    "policy_type": history_row['policy'],
+                    "checkpoint": history_row['checkpoint'],
+                }
+            )
+            if wandb_entity:
+                wandb_kwargs["entity"] = wandb_entity
+            run = wandb.init(**wandb_kwargs)
+            wandb.log(agg_metrics)
+            wandb.finish()
 
     # Save output if requested
     if output_path:
