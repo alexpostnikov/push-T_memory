@@ -55,11 +55,13 @@ def import_lerobot_policy(policy_type):
     import importlib
     CANDIDATES = {
         "act": [
+            "lerobot.common.policies.act.modeling_act.ACTPolicy",
             "lerobot.models.act.ACTPolicy",
             "lerobot.policies.act_policy.ACTPolicy",
             "lerobot.policy.act.ACTPolicy",
         ],
         "diffusion": [
+            "lerobot.common.policies.diffusion.modeling_diffusion.DiffusionPolicy",
             "lerobot.models.diffusion.DiffusionPolicy",
             "lerobot.policies.diffusion_policy.DiffusionPolicy",
             "lerobot.policy.diffusion.DiffusionPolicy",
@@ -78,10 +80,10 @@ def import_lerobot_policy(policy_type):
             continue
     err_msg = (
         f"Could not locate {policy_type} policy class in known module paths.\n"
-        "Tried:\n  - " + "\n  - ".join(CANDIDATES[policy_type]) + "\n"
-        "Make sure LeRobot is installed or external/lerobot is up-to-date and on PYTHONPATH."
+        "Tried import paths (in order):\n  - " + "\n  - ".join(CANDIDATES[policy_type]) + "\n"
+        "Please ensure LeRobot is installed, external/lerobot is up-to-date, and your PYTHONPATH includes the correct modules."
     )
-    raise ImportError(err_msg + "\n" + "\n".join(errors))
+    raise ImportError(err_msg + "\nDetailed import errors:\n" + "\n".join(errors))
 
 class LegacyPolicyWrapper:
     """
@@ -89,19 +91,31 @@ class LegacyPolicyWrapper:
     """
     def __init__(self, policy_type, checkpoint_path, device="cpu"):
         PolicyClass = import_lerobot_policy(policy_type)
-        # Support .safetensors, .pt, or HF repo
-        if os.path.isfile(checkpoint_path):
-            if checkpoint_path.endswith(".safetensors"):
-                print(f"Loading legacy policy (safetensors): {checkpoint_path}")
-                self.policy = torch.jit.load(checkpoint_path, map_location=device)
-            else:
-                print(f"Loading legacy policy: {checkpoint_path}")
-                self.policy = torch.load(checkpoint_path, map_location=device)
-        else:
-            print(f"Loading legacy policy from HuggingFace repo: {checkpoint_path}")
-            self.policy = torch.hub.load(checkpoint_path, "policy", source="github", map_location=device)
-        self.policy.eval()
         self.device = device
+        # if checkpoint_path is local dir or file
+        if os.path.isdir(checkpoint_path):
+            # Assume HF repo cloned locally; call from_pretrained
+            self.policy = PolicyClass.from_pretrained(checkpoint_path, device_map=None).to(device)
+        elif os.path.isfile(checkpoint_path):
+            if checkpoint_path.endswith(('.ckpt', '.pt', '.pth', '.safetensors')):
+                try:
+                    # Use load_from_checkpoint if lightning ckpt
+                    self.policy = PolicyClass.load_from_checkpoint(checkpoint_path, map_location=device)
+                except Exception:
+                    # fallback torch load
+                    state = torch.load(checkpoint_path, map_location=device)
+                    self.policy = PolicyClass(PolicyClass.config_class())
+                    if 'state_dict' in state:
+                        self.policy.load_state_dict(state['state_dict'], strict=False)
+                    else:
+                        self.policy.load_state_dict(state, strict=False)
+            else:
+                # treat as directory
+                self.policy = PolicyClass.from_pretrained(checkpoint_path).to(device)
+        else:
+            # treat as HF repo id
+            self.policy = PolicyClass.from_pretrained(checkpoint_path).to(device)
+        self.policy.eval()
 
     def act(self, obs):
         obs_tensor = self._obs_to_tensor(obs)
