@@ -38,6 +38,9 @@ def parse_args():
             "Path to the pretrained policy checkpoint (.ckpt, .pth, .safetensors) "
             "or a Hugging Face repo-id (e.g. 'lerobot/diffusion_pusht')."
         )
+    ) "
+            "or a Hugging Face repo-id (e.g. 'lerobot/diffusion_pusht')."
+        )
     )
     parser.add_argument(
         "--episodes", type=int, default=100,
@@ -152,6 +155,48 @@ class PolicyWrapper:
                 raise RuntimeError(f"Failed to load checkpoint: {e}")
             self.policy.eval()
             self.policy.to(self.device)
+            print(f"✓ Loaded checkpoint from local file: {checkpoint_path}")
+        else:
+            # Assume Hugging Face Hub repo-id
+            try:
+                self.policy = PolicyClass.from_pretrained(checkpoint_path, device_map="cpu")
+                self.policy.eval()
+                self.policy.to(self.device)
+                print(f"✓ Loaded checkpoint from Hugging Face Hub repo: {checkpoint_path}")
+            except Exception as e:
+                raise RuntimeError(f"Failed to load checkpoint from Hugging Face Hub repo-id '{checkpoint_path}': {e}")
+
+    def act(self, obs):
+        # Handles single-observation input, returns action (numpy array)
+        obs_tensor = self._obs_to_tensor(obs)
+        with torch.no_grad():
+            if self.device == "cuda":
+                with torch.cuda.amp.autocast():
+                    action = self.policy(obs_tensor)
+            else:
+                action = self.policy(obs_tensor)
+        # Assume output is tensor (batch or single), move to CPU and numpy
+        if isinstance(action, tuple):
+            action = action[0]  # In case model returns (action, info)
+        if isinstance(action, torch.Tensor):
+            action = action.detach().cpu().numpy()
+        if action.ndim > 1:
+            action = action.squeeze(0)
+        return action
+
+    def _obs_to_tensor(self, obs):
+        # Accept dict or np.ndarray obs
+        if isinstance(obs, dict):
+            obs_tensor = {k: torch.from_numpy(np.asarray(v)).float().to(self.device) for k, v in obs.items()}
+        else:
+            obs_tensor = torch.from_numpy(np.asarray(obs)).float().to(self.device)
+        # Unsqueeze if needed (policy expects batch dim)
+        if isinstance(obs_tensor, dict):
+            obs_tensor = {k: v.unsqueeze(0) if v.ndim == 1 else v for k, v in obs_tensor.items()}
+        else:
+            if obs_tensor.ndim == 1:
+                obs_tensor = obs_tensor.unsqueeze(0)
+        return obs_tensor
             print(f"✓ Loaded checkpoint from local file: {checkpoint_path}")
         else:
             # Assume Hugging Face Hub repo-id
