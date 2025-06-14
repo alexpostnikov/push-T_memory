@@ -1,0 +1,11 @@
+torch>=2.0
+hydra-core
+numpy
+matplotlib
+pandas
+seaborn
+pytorch-lightning
+tqdm
+pylatex
+latexmk
+jupyter
