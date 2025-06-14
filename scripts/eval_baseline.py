@@ -8,6 +8,13 @@ import csv
 import datetime
 from collections import defaultdict
 
+from pathlib import Path
+# Auto-add external/lerobot to PYTHONPATH if present
+_ROOT = Path(__file__).resolve().parent.parent
+_LERO_DIR = _ROOT / "external" / "lerobot"
+if _LERO_DIR.exists() and str(_LERO_DIR) not in sys.path:
+    sys.path.insert(0, str(_LERO_DIR))
+
 try:
     import torch
 except ImportError:
@@ -62,7 +69,7 @@ def import_lerobot_policy(policy_type):
     except ImportError as e:
         msg = (
             f"Could not import LeRobot policy class for '{policy_type}'.\n"
-            "Ensure the external/lerobot submodule is initialised and in PYTHONPATH.\n"
+            "Ensure the external/lerobot submodule is initialised.\n"
             "   git submodule update --init --recursive\n"
             f"Original error: {e}"
         )
