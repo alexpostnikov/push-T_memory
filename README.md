@@ -1,5 +1,46 @@
 # CTM-ACT Push-T Integration
 
+---
+
+## 🗺️ Overall Project Plan
+
+This project aims to enhance the Push‑T policy by integrating Continuous Thought Machine (CTM) mechanisms into DeepMind’s ACT (Adaptive Controller Transformer) baseline. The goal is to surpass both ACT and diffusion policy metrics in success rate, trajectory smoothness, and inference speed.
+
+### ✅ What Has Been Done
+
+- **Repository Setup:**  
+  - Structured codebase with `src/`, `scripts/`, `notebooks/`, and `report/` directories.
+  - Added installation/setup documentation and helper scripts.
+- **Baselines Ready:**  
+  - ACT and diffusion policy baselines cloned, pre-trained weights loaded, and evaluation scripts set up.
+- **External CTM Modules:**  
+  - SakanaAI’s CTM repo cloned and basic API/tick/sync modules installed.
+- **Initial Integration Plan:**  
+  - Outlined approach for wrapping ACT transformer layers with CTM-style modules.
+  - Defined evaluation metrics and reporting pipeline.
+- **LaTeX Report Template:**  
+  - Created initial LaTeX structure for experiment reporting.
+
+### 🔜 What Is Next
+
+- **CTM-Style Integration:**  
+  - Implement PyTorch CTM synapse wrappers for ACT transformer layers (internal ticks, neuron history, and sync gating).
+  - Replace/augment selected feed-forward and attention layers with tick-synchronous modules.
+- **Training Pipeline:**  
+  - Fine-tune CTM-ACT model on Push‑T using curriculum tick ramp-up and adaptive loss.
+- **Evaluation & Metrics:**  
+  - Benchmark against ACT and diffusion policies on success rate, overlap, and trajectory smoothness.
+- **Visualization & Logging:**  
+  - Develop scripts/notebooks for tick-wise neuron/activity traces, attention maps, and adaptive compute stats.
+  - Compare trajectories and plot performance improvements.
+- **Reporting:**  
+  - Auto-generate updated LaTeX report (metrics, ablations, visualizations).
+  - Compile and release PDF of results.
+
+*This section will be updated as milestones are completed. See below for full technical and usage details.*
+
+---
+
 # Installation
 
 Clone the repository:
