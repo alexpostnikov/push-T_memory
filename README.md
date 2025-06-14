@@ -111,6 +111,10 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
      ```bash
      ./scripts/download_checkpoints.sh
      ```
+   - **If the checkpoint repository is private you must provide a Hugging Face access token:**  
+     ```bash
+     export HF_TOKEN=&lt;your_token&gt; ; bash scripts/download_checkpoints.sh
+     ```
 
 3. **Run Baseline Evaluation**  
    - To evaluate the ACT or Diffusion baselines, use the provided evaluation script:
