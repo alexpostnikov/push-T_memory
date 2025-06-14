@@ -4,6 +4,8 @@ import sys
 import time
 import json
 import random
+import csv
+import datetime
 from collections import defaultdict
 
 try:
@@ -24,61 +26,90 @@ except ImportError:
     print("tqdm is required. Please install tqdm.")
     sys.exit(1)
 
-def parse_args():
-    parser = argparse.ArgumentParser(
-        description="Evaluate a baseline policy on the environment.",
-    )
-    parser.add_argument(
-        "--policy-path",
-        type=str,
-        required=True,
-        help="Path to the policy file (.pt, .safetensors, or HuggingFace repo-id).",
-    )
-    parser.add_argument(
-        "--env",
-        type=str,
-        required=True,
-        help="Environment name.",
-    )
-    parser.add_argument(
-        "--n-episodes",
-        type=int,
-        default=10,
-        help="Number of episodes to evaluate.",
-    )
-    parser.add_argument(
-        "--render",
-        action="store_true",
-        help="Render the environment.",
-    )
-    parser.add_argument(
-        "--log-dir",
-        type=str,
-        default="results",
-        help="Directory to save result logs (default: results)",
-    )
-    parser.add_argument(
-        "--wandb",
-        action="store_true",
-        default=False,
-        help="Log results to Weights & Biases",
-    )
-    parser.add_argument(
-        "--wandb-project",
-        type=str,
-        default="push-t-baselines",
-        help="wandb project name (default: push-t-baselines)",
-    )
-    parser.add_argument(
-        "--wandb-entity",
-        type=str,
-        default=None,
-        help="wandb entity (optional)",
-    )
-    return parser.parse_args()
+################################################################################
+# Helper Functions (Legacy)
+################################################################################
 
+def auto_device():
+    """Return cuda if available, else cpu."""
+    return "cuda" if torch.cuda.is_available() else "cpu"
 
-class PolicyWrapper:
+def set_global_seed(seed):
+    """Set random, numpy, and torch seeds (for reproducibility)."""
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+################################################################################
+# Legacy Policy Import (backward compatible)
+################################################################################
+
+def import_lerobot_policy(policy_type):
+    """
+    Dynamically import the correct policy class based on type.
+    """
+    if policy_type == "act":
+        # ACT policy
+        from src.lerobot.policies.act_policy import ACTPolicy
+        return ACTPolicy
+    elif policy_type == "diffusion":
+        from src.lerobot.policies.diffusion_policy import DiffusionPolicy
+        return DiffusionPolicy
+    else:
+        raise ValueError(f"Unknown policy type: {policy_type}")
+
+class LegacyPolicyWrapper:
+    """
+    Wraps a legacy LeRobot policy loaded via (policy, checkpoint).
+    """
+    def __init__(self, policy_type, checkpoint_path, device="cpu"):
+        PolicyClass = import_lerobot_policy(policy_type)
+        # Support .safetensors, .pt, or HF repo
+        if os.path.isfile(checkpoint_path):
+            if checkpoint_path.endswith(".safetensors"):
+                print(f"Loading legacy policy (safetensors): {checkpoint_path}")
+                self.policy = torch.jit.load(checkpoint_path, map_location=device)
+            else:
+                print(f"Loading legacy policy: {checkpoint_path}")
+                self.policy = torch.load(checkpoint_path, map_location=device)
+        else:
+            print(f"Loading legacy policy from HuggingFace repo: {checkpoint_path}")
+            self.policy = torch.hub.load(checkpoint_path, "policy", source="github", map_location=device)
+        self.policy.eval()
+        self.device = device
+
+    def act(self, obs):
+        obs_tensor = self._obs_to_tensor(obs)
+        with torch.no_grad():
+            action = self.policy(obs_tensor)
+        if isinstance(action, tuple):
+            action = action[0]
+        if isinstance(action, torch.Tensor):
+            action = action.detach().cpu().numpy()
+        if hasattr(action, "ndim") and action.ndim > 1:
+            action = action.squeeze(0)
+        return action
+
+    def _obs_to_tensor(self, obs):
+        if isinstance(obs, dict):
+            obs_tensor = {k: torch.from_numpy(np.asarray(v)).float().to(self.device) for k, v in obs.items()}
+            obs_tensor = {k: v.unsqueeze(0) if v.ndim == 1 else v for k, v in obs_tensor.items()}
+        else:
+            obs_tensor = torch.from_numpy(np.asarray(obs)).float().to(self.device)
+            if obs_tensor.ndim == 1:
+                obs_tensor = obs_tensor.unsqueeze(0)
+        return obs_tensor
+
+################################################################################
+# Generic Policy Wrapper (new, renamed for clarity)
+################################################################################
+
+class GenericPolicyWrapper:
+    """
+    New-style policy wrapper, supports new --policy-path loading.
+    """
     def __init__(self, policy_path, device="cpu"):
         self.device = device
         # Try to load a torch.jit (safetensors), torch.load, or HuggingFace repo
@@ -118,8 +149,149 @@ class PolicyWrapper:
                 obs_tensor = obs_tensor.unsqueeze(0)
         return obs_tensor
 
-import csv
-import datetime
+################################################################################
+# CLI Argument Parsing (hybrid/compatible)
+################################################################################
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Evaluate a baseline policy on the environment.",
+    )
+    # New-style arg
+    parser.add_argument(
+        "--policy-path",
+        type=str,
+        required=False,
+        help="Path to the policy file (.pt, .safetensors, or HuggingFace repo-id).",
+    )
+    # Legacy args
+    parser.add_argument(
+        "--policy",
+        type=str,
+        choices=["act", "diffusion"],
+        required=False,
+        help="Policy type: act or diffusion (legacy CLI)",
+    )
+    parser.add_argument(
+        "--checkpoint",
+        type=str,
+        required=False,
+        help="Path to checkpoint file or HF repo id (legacy CLI)",
+    )
+    # Allow both n-episodes and episodes for compatibility
+    parser.add_argument(
+        "--n-episodes",
+        type=int,
+        default=None,
+        help="Number of episodes to evaluate.",
+    )
+    parser.add_argument(
+        "--episodes",
+        type=int,
+        default=None,
+        help="Alias for --n-episodes (legacy CLI).",
+    )
+    # Device (legacy)
+    parser.add_argument(
+        "--device",
+        type=str,
+        choices=["cpu", "cuda"],
+        default=None,
+        help="Device to use for inference.",
+    )
+    # Environment
+    parser.add_argument(
+        "--env",
+        type=str,
+        default="LeRobot-PushT-v0",
+        help="Environment name (default: LeRobot-PushT-v0).",
+    )
+    # Other unchanged args
+    parser.add_argument(
+        "--render",
+        action="store_true",
+        help="Render the environment.",
+    )
+    parser.add_argument(
+        "--log-dir",
+        type=str,
+        default="results",
+        help="Directory to save result logs (default: results)",
+    )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        default=False,
+        help="Log results to Weights & Biases",
+    )
+    parser.add_argument(
+        "--wandb-project",
+        type=str,
+        default="push-t-baselines",
+        help="wandb project name (default: push-t-baselines)",
+    )
+    parser.add_argument(
+        "--wandb-entity",
+        type=str,
+        default=None,
+        help="wandb entity (optional)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="If set, write results to this JSON file.",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for reproducibility.",
+    )
+
+    args = parser.parse_args()
+
+    # Backward compatibility validation logic
+    # If --policy-path is not provided, require both --policy and --checkpoint
+    if args.policy_path is None:
+        if args.policy is None or args.checkpoint is None:
+            parser.error("Either --policy-path OR both --policy and --checkpoint must be provided.")
+    # If --policy-path is provided, ignore policy/checkpoint
+    # Episodes: use the first provided among --n-episodes, --episodes, else default 100 for legacy
+    if args.n_episodes is not None:
+        args.episodes_final = args.n_episodes
+    elif args.episodes is not None:
+        args.episodes_final = args.episodes
+    else:
+        args.episodes_final = 100
+    # Device: use --device if specified, otherwise auto_device()
+    if args.device is None:
+        args.device_final = auto_device()
+    else:
+        args.device_final = args.device
+    # Env: default already set
+    return args
+
+################################################################################
+# ENV IMPORT (assume function is present in user codebase)
+################################################################################
+
+def import_lerobot_env():
+    """
+    Import and initialize the LeRobot environment.
+    (Placeholder: replace with actual env loading as appropriate.)
+    """
+    # Example code, replace with actual implementation as needed
+    import gymnasium as gym
+    try:
+        env = gym.make("LeRobot-PushT-v0")
+    except Exception:
+        env = gym.make("LeRobot-PushT-v0")  # fallback or custom
+    return env
+
+################################################################################
+# LOGGING HELPERS (unchanged)
+################################################################################
 
 def ensure_dir(path):
     os.makedirs(path, exist_ok=True)
@@ -161,12 +333,30 @@ def update_leaderboard(log_dir, key, sr, metrics_dict):
         return True
     return False
 
+################################################################################
+# MAIN EVAL LOGIC (hybrid policy loading)
+################################################################################
+
 def main():
     args = parse_args()
-    # Adapted variable names for backward compatibility
-    policy_path = getattr(args, "policy_path", None)
-    env_name = getattr(args, "env", None)
-    episodes = getattr(args, "n_episodes", getattr(args, "episodes", 10))
+
+    # Determine policy loading mode and attributes
+    if args.policy_path is not None:
+        # New-style loading
+        policy_path = args.policy_path
+        policy_label = os.path.splitext(os.path.basename(policy_path))[0] if policy_path else ""
+        checkpoint_label = policy_path
+        policy_loader = lambda: GenericPolicyWrapper(policy_path, args.device_final)
+    else:
+        # Legacy loading
+        policy_type = args.policy
+        checkpoint_path = args.checkpoint
+        policy_label = policy_type
+        checkpoint_label = checkpoint_path
+        policy_loader = lambda: LegacyPolicyWrapper(policy_type, checkpoint_path, args.device_final)
+
+    env_name = getattr(args, "env", "LeRobot-PushT-v0")
+    episodes = getattr(args, "episodes_final", 100)
     render = getattr(args, "render", False)
     log_dir = getattr(args, "log_dir", "results")
     wandb_flag = getattr(args, "wandb", False)
@@ -174,11 +364,10 @@ def main():
     wandb_entity = getattr(args, "wandb_entity", None)
     output_path = getattr(args, "output", None)
     seed = getattr(args, "seed", None)
+    device = getattr(args, "device_final", auto_device())
 
-    device = getattr(args, "device", "cpu") if hasattr(args, "device") else "cpu"
-
-    print(f"Evaluating policy on LeRobot-PushT-v0")
-    print(f"Checkpoint (local path or Hugging Face repo-id): {policy_path}")
+    print(f"Evaluating policy on {env_name}")
+    print(f"Checkpoint (local path or Hugging Face repo-id): {checkpoint_label}")
     print(f"Episodes: {episodes}")
     print(f"Device: {device}")
 
@@ -188,7 +377,7 @@ def main():
 
     # Load policy
     try:
-        policy = PolicyWrapper(policy_path, device)
+        policy = policy_loader()
     except Exception as e:
         print(str(e))
         sys.exit(1)
@@ -270,8 +459,8 @@ def main():
     now = datetime.datetime.now().isoformat(timespec="seconds")
     history_row = dict(
         timestamp=now,
-        policy=os.path.splitext(os.path.basename(policy_path))[0] if policy_path else "",
-        checkpoint=policy_path,
+        policy=policy_label,
+        checkpoint=checkpoint_label,
         success_rate=agg_metrics["success_rate"],
         mean_reward=agg_metrics["mean_reward"],
         mean_ep_len=agg_metrics["mean_ep_len"],
