@@ -112,13 +112,17 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
      ```
 
 3. **Run Baseline Evaluation**  
-   - To evaluate the ACT baseline:
+   - To evaluate the CTM-ACT or baseline policies, use the provided evaluation script:
      ```bash
-     python scripts/eval_baseline.py --policy act --checkpoint path/to/act_checkpoint.pth
+     python scripts/ctm_eval.py --policy act --checkpoint path/to/act_checkpoint.pth
      ```
-   - To evaluate the diffusion baseline:
+     or, for evaluating CTM-integrated ACT:
      ```bash
-     python scripts/eval_baseline.py --policy diffusion --checkpoint path/to/diffusion_checkpoint.pth
+     python scripts/ctm_eval.py --policy ctm_act --checkpoint path/to/ctm_act_checkpoint.pth
+     ```
+   - For further options and details, see the script help:
+     ```bash
+     python scripts/ctm_eval.py --help
      ```
 
 4. **View Results**  
