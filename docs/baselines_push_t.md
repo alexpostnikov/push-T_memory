@@ -44,6 +44,10 @@ python scripts/eval_baseline.py \
   --device cuda
 ```
 
+If `checkpoints/pusht_act.safetensors` (or the diffusion checkpoint) exists in the
+`checkpoints/` directory, you can omit `--checkpoint` and the script will pick it up
+automatically.
+
 Or, using Hugging Face repo-id:
 
 ```bash

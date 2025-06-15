@@ -97,7 +97,7 @@ class LegacyPolicyWrapper:
             # Assume HF repo cloned locally; call from_pretrained
             self.policy = PolicyClass.from_pretrained(checkpoint_path, device_map=None).to(device)
         elif os.path.isfile(checkpoint_path):
-            if checkpoint_path.endswith(('.ckpt', '.pt', '.pth', '.safetensors')):
+            if checkpoint_path.endswith(('.ckpt', '.pt', '.pth')):
                 try:
                     # Use load_from_checkpoint if lightning ckpt
                     self.policy = PolicyClass.load_from_checkpoint(checkpoint_path, map_location=device)
@@ -109,6 +109,12 @@ class LegacyPolicyWrapper:
                         self.policy.load_state_dict(state['state_dict'], strict=False)
                     else:
                         self.policy.load_state_dict(state, strict=False)
+            elif checkpoint_path.endswith('.safetensors'):
+                from safetensors.torch import load_file
+                state = load_file(checkpoint_path, device=device)
+                self.policy = PolicyClass(PolicyClass.config_class())
+                self.policy.load_state_dict(state, strict=False)
+                self.policy.to(device)
             else:
                 # treat as directory
                 self.policy = PolicyClass.from_pretrained(checkpoint_path).to(device)
@@ -289,10 +295,25 @@ def parse_args():
     args = parser.parse_args()
 
     # Backward compatibility validation logic
-    # If --policy-path is not provided, require both --policy and --checkpoint
+    # If --policy-path is not provided, allow --policy alone and auto-fill checkpoint
     if args.policy_path is None:
-        if args.policy is None or args.checkpoint is None:
-            parser.error("Either --policy-path OR both --policy and --checkpoint must be provided.")
+        if args.policy is None:
+            parser.error("Either --policy-path OR --policy must be provided.")
+        if args.checkpoint is None:
+            default_ckpts = {
+                "act": "checkpoints/pusht_act.safetensors",
+                "diffusion": "checkpoints/pusht_diffusion.safetensors",
+            }
+            default_ckpt = default_ckpts.get(args.policy)
+            if default_ckpt and os.path.exists(default_ckpt):
+                print(f"Using default checkpoint for {args.policy}: {default_ckpt}")
+                args.checkpoint = default_ckpt
+            else:
+                parser.error(
+                    "--checkpoint not provided and default checkpoint missing. "
+                    "Please download via scripts/download_checkpoints.sh or "
+                    "specify --checkpoint explicitly."
+                )
     # If --policy-path is provided, ignore policy/checkpoint
     # Episodes: use the first provided among --n-episodes, --episodes, else default 100 for legacy
     if args.n_episodes is not None:

@@ -125,11 +125,11 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
      ```
    - **Alternatively:** You may skip downloading and simply provide the repo-id (e.g. `lerobot/diffusion_pusht`) as the `--checkpoint` argument to the evaluation script.
 
-3. **Run Baseline Evaluation**  
+3. **Run Baseline Evaluation**
    - To evaluate the ACT or Diffusion baselines, use the provided evaluation script:
      ```bash
-     python scripts/eval_baseline.py --policy act --checkpoint checkpoints/pusht_act.safetensors --episodes 100 --device cuda
-     ```
+    python scripts/eval_baseline.py --policy act --checkpoint checkpoints/pusht_act.safetensors --episodes 100 --device cuda
+    ```
      or, for Diffusion:
      ```bash
      python scripts/eval_baseline.py --policy diffusion --checkpoint checkpoints/pusht_diffusion.safetensors --episodes 100 --device cuda
@@ -137,8 +137,9 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
    - **(Alternative: Hugging Face repo-id)**  
      You can also run, without manual download:
      ```bash
-     python scripts/eval_baseline.py --policy diffusion --checkpoint lerobot/diffusion_pusht --episodes 100 --device cuda
-     ```
+    python scripts/eval_baseline.py --policy diffusion --checkpoint lerobot/diffusion_pusht --episodes 100 --device cuda
+    ```
+   - **Tip:** if `checkpoints/pusht_act.safetensors` (or the diffusion file) exists, you can omit `--checkpoint` and the script will use the default path automatically.
    - For further options and details, see the script help:
      ```bash
      python scripts/eval_baseline.py --help
