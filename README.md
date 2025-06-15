@@ -160,6 +160,7 @@ You can evaluate baseline ACT and diffusion policies on the Push‑T environment
 > ```bash
 > git submodule update --init --recursive
 > ```
+- If you encounter a "Weights only load failed" error when running the evaluation script under PyTorch 2.6, update to the latest code. The script now sets `weights_only=False` when loading checkpoints.
 
 ## Repository Structure
 
@@ -190,28 +191,6 @@ Data & Tools Setup
 Clone LeRobot repo, load pretrained ACT Push‑T policy, training scripts, and evaluation pipeline.
 
 Clone Sakana1’s CTM repo (https://github.com/SakanaAI/continuous-thought-machines), install CTM API and tick/sync modules. 
-linkedin.com
-+1
-venturebeat.com
-+1
-arxiv.org
-+2
-reduct.store
-+2
-physicalintelligence.company
-+2
-youtube.com
-+6
-github.com
-+6
-github.com
-+6
-arxiv.org
-+10
-github.com
-+10
-noailabs.medium.com
-+10
 
 Model Integration
 
@@ -236,28 +215,8 @@ Evaluation Metrics
 Success Rate: exceed diffusion and ACT on Push‑T environment.
 
 Overlap Ratio: better max overlap vs target (baseline ~0.95) 
-github.com
-+2
-github.com
-+2
-x.com
-+2
-github.com
-bdtechtalks.com
-+1
-venturebeat.com
-+1
-arxiv.org
-+4
-huggingface.co
-+4
-github.com
-+4
-.
 
 Trajectory Smoothness / Latency: match or better ACT smoother paths 
-medium.com
-.
 
 Visualizations
 
@@ -273,9 +232,6 @@ LaTeX Tech Report
 
 After surpassing baselines, generate a structured LaTeX report with sections: Abstract, Intro, Related Work (ACT/diffusion/CTM), Method (CTM-ACT integration), Experiments, Results (metrics & ablations), Visualizations, Discussion, Conclusion, Future Work.
 
-Auto-generate report outline + charts (via matplotlib → TikZ or PNG + embed).
-
-Compile to PDF and save as CTM-ACT_PushT_report.pdf.
 
 🔄 Expected Agent Behavior
 Generate a modular PyTorch implementation of CTM synapse wrapper that can “plug into” ACT layers.
