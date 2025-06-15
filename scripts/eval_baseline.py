@@ -103,7 +103,7 @@ class LegacyPolicyWrapper:
                     self.policy = PolicyClass.load_from_checkpoint(checkpoint_path, map_location=device)
                 except Exception:
                     # fallback torch load
-                    state = torch.load(checkpoint_path, map_location=device)
+                    state = torch.load(checkpoint_path, map_location=device, weights_only=False)
                     self.policy = PolicyClass(PolicyClass.config_class())
                     if 'state_dict' in state:
                         self.policy.load_state_dict(state['state_dict'], strict=False)
@@ -156,7 +156,7 @@ class GenericPolicyWrapper:
                 self.policy = torch.jit.load(policy_path, map_location=device)
             else:
                 print(f"Loading local file: {policy_path}")
-                self.policy = torch.load(policy_path, map_location=device)
+                self.policy = torch.load(policy_path, map_location=device, weights_only=False)
         else:
             print(f"Loading HuggingFace repo: {policy_path}")
             self.policy = torch.hub.load(policy_path, "policy", source="github", map_location=device)
